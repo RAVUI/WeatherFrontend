@@ -1,0 +1,95 @@
+﻿@page "/register"
+@using WeatherFrontend.Service
+@using WeatherFrontend.Models
+@using MudBlazor
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer Class="d-flex align-center justify-center" Style="height: 100vh;">
+    <MudPaper Elevation="4" Class="pa-8" Style="width: 400px;">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-8">Register</MudText>
+
+        <EditForm Model="@_registerModel" OnValidSubmit="HandleRegister">
+            <DataAnnotationsValidator />
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_registerModel.Email"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  For="@(() => _registerModel.Email)"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Email" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_registerModel.Password"
+                                  Label="Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  For="@(() => _registerModel.Password)"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Lock" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_registerModel.ConfirmPassword"
+                                  Label="Confirm Password"
+                                  Variant="Variant.Outlined"
+                                  InputType="InputType.Password"
+                                  For="@(() => _registerModel.ConfirmPassword)"
+                                  Adornment="Adornment.Start" />
+                </MudItem>
+
+                <MudItem xs="12" Class="d-flex justify-center mt-4">
+                    <MudButton ButtonType="ButtonType.Submit"
+                               Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               Size="Size.Large"
+                               FullWidth="true">
+                        Register
+                    </MudButton>
+                </MudItem>
+
+                <MudItem xs="12" Class="d-flex justify-center mt-4">
+                    <MudText>Already have an account? <MudLink Href="/login">Login</MudLink></MudText>
+                </MudItem>
+            </MudGrid>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private RegisterModel _registerModel = new RegisterModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Check if already authenticated
+        var isAuthenticated = await AuthService.IsAuthenticated(); // Adjust method name if needed
+        if (isAuthenticated)
+        {
+            NavigationManager.NavigateTo("/");
+        }
+    }
+
+    private async Task HandleRegister()
+    {
+        try
+        {
+            var success = await AuthService.Register(_registerModel.Email, _registerModel.Password); // Adjust method name if needed
+            if (success)
+            {
+                Snackbar.Add("Registration successful! Please login.", Severity.Success);
+                NavigationManager.NavigateTo("/login");
+            }
+            else
+            {
+                Snackbar.Add("Registration failed. Please try again.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Registration error: {ex.Message}", Severity.Error);
+        }
+    }
+}
