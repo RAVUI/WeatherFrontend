@@ -1,0 +1,117 @@
+﻿@inherits MudComponentBase
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthService AuthService
+@inject NavigationManager Navigation
+@using MudBlazor
+@using MudBlazor.Dialog
+
+<MudDialog Options="new DialogOptions { CloseButton = true, CloseOnEscapeKey = false }">
+    <TitleContent>
+        <MudText Typo="Typo.h6" Class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Class="mr-3" />
+            Profile Details
+            <MudSpacer />
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <div @onclick:stopPropagation="true">
+            <MudGrid>
+                <MudItem xs="12" Class="d-flex justify-center">
+                    <MudAvatar Image="path/to/default/profile/image.jpg" Size="Size.Large" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_userProfile.Id"
+                                  Label="User ID"
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="true" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_userProfile.Email"
+                                  Label="Email"
+                                  Variant="Variant.Outlined"
+                                  ReadOnly="true" />
+                </MudItem>
+            </MudGrid>
+        </div>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Color="Color.Error"
+                   Variant="Variant.Filled"
+                   OnClick="HandleLogout">
+            Logout
+        </MudButton>
+        <MudButton Color="Color.Default"
+                   Variant="Variant.Text"
+                   OnClick="Close">
+            Close
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string PreviousPage { get; set; } = "/home";
+
+    private UserProfile _userProfile = new UserProfile();
+
+    public class UserProfile
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+    }
+
+    protected override void OnInitialized()
+    {
+        // Ensure the dialog options are enforced
+        MudDialog.Options.CloseButton = true;
+        MudDialog.Options.CloseOnEscapeKey = false;
+
+    }
+
+    private void Close()
+    {
+        MudDialog.Close();
+        Navigation.NavigateTo(PreviousPage, forceLoad: false); // Use PreviousPage here
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login", forceLoad: true);
+        MudDialog.Close();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserProfile();
+    }
+
+    private async Task LoadUserProfile()
+    {
+        try
+        {
+            var authCheckResponse = await AuthService.CheckAuth();
+            if (authCheckResponse != null)
+            {
+                _userProfile.Id = authCheckResponse.Id;
+                _userProfile.Email = authCheckResponse.Email;
+            }
+            else
+            {
+                Snackbar.Add("User not authenticated", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading profile: {ex.Message}", Severity.Error);
+        }
+    }
+}

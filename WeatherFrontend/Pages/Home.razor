@@ -1,16 +1,21 @@
-﻿@page "/Home"
+﻿@page "/home"
 @using WeatherFrontend.Models
+@using Microsoft.AspNetCore.WebUtilities
 @inject WeatherService WeatherService
 @inject IJSRuntime JSRuntime
-@inject NavigationManager NavigationManager
 @using MudBlazor
-
-
+@inherits LayoutComponentBase
+@using WeatherFrontend.Services;
+@inject IFavoriteCityService FavoriteCityService
+@inject AuthService AuthService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject UserHistoryService UserHistoryService
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
 
 <div class="weather-app-container">
     <MudContainer MaxWidth="MaxWidth.Large">
-        <!-- Search Section (removed paper container) -->
-        <MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mb-6">
+        <MudGrid Justify="Justify.Center" AlignItems="AlignItems.Center" Class="mb-6 moved-up-search">
             <MudItem xs="12" sm="10" md="8" lg="6">
                 <MudTextField T="string"
                               Label="Enter City Name"
@@ -27,133 +32,199 @@
             </MudItem>
         </MudGrid>
 
-        <!-- Weather Display Section -->
-        @if (IsLoading)
-        {
-            <div class="loading-container">
-                <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
-                <MudText Typo="Typo.body1" Class="mt-2">Fetching weather data...</MudText>
-            </div>
-        }
-        else if (!string.IsNullOrEmpty(locationError))
-        {
-            <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-lg error-alert">
-                <MudText>@locationError</MudText>
-                <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="GetCurrentLocationWeather" Class="ml-auto">
-                    Try Again
-                </MudButton>
-            </MudAlert>
-        }
-        else if (weatherData != null)
-        {
-            <MudPaper Class="weather-card" Elevation="0">
-                <!-- City Header with Background -->
-                <div class="city-header">
-                    <div class="city-header-content">
-                        <div>
-                            <MudText Typo="Typo.h4" Class="city-name">
-                                @weatherData.City
-                            </MudText>
-                            <MudText Typo="Typo.body1" Class="city-date">
-                                @DateTime.Now.ToString("dddd, MMMM d, yyyy")
-                            </MudText>
-                        </div>
-                        <div class="favorite-icon-container">
-                            <MudIconButton Icon="@(IsFavorite(weatherData.City) ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder)"
-                                           Color="@(IsFavorite(weatherData.City) ? Color.Error : Color.Default)"
-                                           OnClick="() => ToggleFavorite(weatherData)"
-                                           Size="Size.Medium"
-                                           Class="favorite-button" />
-                        </div>
-                    </div>
+      
+        <div class="moved-up-weather">
+            @if (IsLoading)
+            {
+                <div class="loading-container">
+                    <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                    <MudText Typo="Typo.body1" Class="mt-2">Fetching weather data...</MudText>
                 </div>
-                <!-- Main Weather Details -->
-                <MudGrid Class="weather-details-container">
-                    <!-- Left Section: Main Temperature -->
-                    <MudItem xs="12" md="4">
-                        <div class="main-temp-card">
-                            <div class="main-temp-content">
-                                <!-- Main Temperature Value -->
-                                <MudText Typo="Typo.h1" Class="main-temp">
-                                    @weatherData.Temperature<span class="temp-unit"></span>
+            }
+            else if (!string.IsNullOrEmpty(locationError))
+            {
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="rounded-lg error-alert">
+                    <MudText>@locationError</MudText>
+                    <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="GetCurrentLocationWeather" Class="ml-auto">
+                        Try Again
+                    </MudButton>
+                </MudAlert>
+            }
+            else if (CurrentWeather != null)
+            {
+                <MudPaper Class="weather-card" Elevation="0">
+                    <!-- City Header with Background -->
+                    <div class="city-header">
+                        <div class="city-header-content">
+                            <div>
+                                <MudText Typo="Typo.h4" Class="city-name">
+                                    @CurrentWeather.City
                                 </MudText>
-
-                                <!-- Label with Temperature Symbol -->
-                                <MudText Typo="Typo.subtitle1" Class="temp-label">
-                                    🌡️ Temperature
+                                <MudText Typo="Typo.body1" Class="city-date">
+                                    @DateTime.Now.ToString("dddd, MMMM d, yyyy")
                                 </MudText>
                             </div>
+                            <!-- Add favorite button here -->
+                            <div class="favorite-button-container">
+                                <MudIconButton Icon="@GetFavoriteIcon()"
+                                               Color="@GetFavoriteColor()"
+                                               Size="Size.Medium"
+                                               OnClick="ToggleFavoriteAsync"
+                                               Disabled="@(isProcessing || !isAuthenticated)" />
+                            </div>
                         </div>
+                    </div>
+                    <!-- Main Weather Details -->
+                    <MudGrid Class="weather-details-container">
+                        <!-- Left Section: Main Temperature -->
+                        <MudItem xs="12" md="4">
+                            <div class="main-temp-card">
+                                <div class="main-temp-content">
+                                    <!-- Main Temperature Value -->
+                                    <MudText Typo="Typo.h1" Class="main-temp">
+                                        @CurrentWeather.Temperature<span class="temp-unit"></span>
+                                    </MudText>
 
-                    </MudItem>
-                    <!-- Right Section: Humidity, Wind Speed, Weather Condition -->
-                    <MudItem xs="12" md="8">
-                        <MudGrid Justify="Justify.Center">
-                            <MudItem xs="12" sm="4">
-                                <div class="weather-detail-card">
-                                    <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Large" Class="detail-icon" />
-                                    <MudText Typo="Typo.subtitle1" Class="detail-label">Humidity</MudText>
-                                    <MudText Typo="Typo.h6" Class="detail-value">
-                                        @weatherData.Humidity% @GetWeatherEmoji("humidity")
+                                    <!-- Label with Temperature Symbol -->
+                                    <MudText Typo="Typo.subtitle1" Class="temp-label">
+                                        🌡️ Temperature
                                     </MudText>
                                 </div>
-                            </MudItem>
+                            </div>
 
-                            <MudItem xs="12" sm="4">
-                                <div class="weather-detail-card">
-                                    <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Large" Class="detail-icon" />
-                                    <MudText Typo="Typo.subtitle1" Class="detail-label">Wind Speed</MudText>
-                                    <MudText Typo="Typo.h6" Class="detail-value">
-                                        @weatherData.WindSpeed km/h @GetWeatherEmoji("wind")
-                                    </MudText>
-                                </div>
-                            </MudItem>
+                        </MudItem>
+                        <!-- Right Section: Humidity, Wind Speed, Weather Condition -->
+                        <MudItem xs="12" md="8">
+                            <MudGrid Justify="Justify.Center">
+                                <MudItem xs="12" sm="4">
+                                    <div class="weather-detail-card">
+                                        <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Large" Class="detail-icon" />
+                                        <MudText Typo="Typo.subtitle1" Class="detail-label">Humidity</MudText>
+                                        <MudText Typo="Typo.h6" Class="detail-value">
+                                            @CurrentWeather.Humidity% @GetWeatherEmoji("humidity")
+                                        </MudText>
+                                    </div>
+                                </MudItem>
 
-                            <MudItem xs="12" sm="4">
-                                <div class="weather-detail-card">
-                                    <MudIcon Icon="@Icons.Material.Filled.AcUnit" Size="Size.Large" Class="detail-icon" />
-                                    <MudText Typo="Typo.subtitle1" Class="detail-label">Weather</MudText>
-                                    <MudText Typo="Typo.h6" Class="detail-value">
-                                        @weatherData.Weather @GetWeatherEmoji(weatherData.Weather)
-                                    </MudText>
-                                </div>
-                            </MudItem>
+                                <MudItem xs="12" sm="4">
+                                    <div class="weather-detail-card">
+                                        <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Large" Class="detail-icon" />
+                                        <MudText Typo="Typo.subtitle1" Class="detail-label">Wind Speed</MudText>
+                                        <MudText Typo="Typo.h6" Class="detail-value">
+                                            @CurrentWeather.WindSpeed km/h @GetWeatherEmoji("wind")
+                                        </MudText>
+                                    </div>
+                                </MudItem>
+
+                                <MudItem xs="12" sm="4">
+                                    <div class="weather-detail-card">
+                                        <MudIcon Icon="@Icons.Material.Filled.AcUnit" Size="Size.Large" Class="detail-icon" />
+                                        <MudText Typo="Typo.subtitle1" Class="detail-label">Weather</MudText>
+                                        <MudText Typo="Typo.h6" Class="detail-value">
+                                            @CurrentWeather.Weather @GetWeatherEmoji(CurrentWeather.Weather)
+                                        </MudText>
+                                    </div>
+                                </MudItem>
+                            </MudGrid>
+                        </MudItem>
+                    </MudGrid>
+
+                    <!-- Location and Forecast Button -->
+                    <MudGrid Class="actions-container">
+                        <MudItem xs="12">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.MyLocation"
+                                       OnClick="GetCurrentLocationWeather"
+                                       Size="Size.Small"
+                                       Class="location-button">
+                                Use My Location
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Secondary"
+                                       StartIcon="@Icons.Material.Filled.CalendarMonth"
+                                       OnClick="ViewForecast"
+                                       Size="Size.Small"
+                                       Class="forecast-button ml-2">
+                                View Forecast
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.History"
+                                       OnClick="ViewSearchHistory"
+                                       Size="Size.Small"
+                                       Class="history-button ml-2">
+                                View History
+                            </MudButton>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+
+                @if (showForecast && ForecastWeather != null)
+                {
+                    <MudPaper Class="forecast-card mt-4" Elevation="0">
+                        <MudText Typo="Typo.h5" Class="px-4 pt-4">5-Day Forecast for @CurrentWeather.City</MudText>
+                        <MudDivider Class="my-2" />
+
+                        <MudGrid Class="px-4 pb-4">
+                            @foreach (var day in ForecastWeather.DailyForecasts)
+                            {
+                                <MudItem xs="12" sm="6" md="4" lg="2">
+                                    <div class="forecast-day-card">
+                                        <MudText Typo="Typo.subtitle1" Class="forecast-day">
+                                            @day.Date.ToString("ddd, MMM d")
+                                        </MudText>
+                                        <div class="forecast-temp-container">
+                                            <MudText Typo="Typo.h5" Class="forecast-temp">
+                                                @day.Temperature°
+                                            </MudText>
+                                            <span class="forecast-emoji">@GetWeatherEmoji(day.Weather)</span>
+                                        </div>
+                                        <MudText Typo="Typo.body2" Class="forecast-condition">
+                                            @day.Weather
+                                        </MudText>
+                                    </div>
+                                </MudItem>
+                            }
                         </MudGrid>
-                    </MudItem>
-                </MudGrid>
-
-                <!-- Location and Update Button -->
-                <MudGrid Class="actions-container">
-                    <MudItem xs="12">
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.MyLocation"
-                                   OnClick="GetCurrentLocationWeather"
-                                   Size="Size.Small"
-                                   Class="location-button">
-                            Use My Location
-                        </MudButton>
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Secondary"
-                                   StartIcon="@Icons.Material.Filled.Favorite"
-                                   Href="/favorites"
-                                   Size="Size.Small"
-                                   Class="favorites-button ml-2">
-                            My Favorites
-                        </MudButton>
-                    </MudItem>
-                </MudGrid>
-            </MudPaper>
-        }
+                    </MudPaper>
+                }
+            }
+        </div>
     </MudContainer>
 </div>
 
 <style>
     /* Base Styling */
     .weather-app-container {
-        /* min-height: 100vh; */
-        /* padding: 2rem 1rem; */
-        /* background: linear-gradient(135deg, #f5f7fa 0%, #e4ecfc 100%); */
+        min-height: 100vh;
+        padding: 2rem 1rem;
+    }
+
+    /* New classes for moving elements up */
+    .moved-up-search {
+        margin-top: -30px; /* Negative margin to move search up */
+    }
+
+    .moved-up-weather {
+        margin-top: -20px; /* Negative margin to move weather display up */
+    }
+
+    /* Welcome Text */
+    .welcome-text {
+        font-weight: 700;
+        color: #0083b0;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+        text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+
+    /* Made by Text */
+    .made-by-text {
+        font-style: italic;
+        color: #555;
+        margin-bottom: 2rem;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
     /* Search Input */
@@ -174,6 +245,14 @@
         .search-input :deep(.mud-input-adornment-end) {
             cursor: pointer;
         }
+
+    .moved-up-search {
+        margin-top: -40px;
+    }
+
+    .moved-up-weather {
+        margin-top: 1px;
+    }
 
     /* Loading State */
     .loading-container {
@@ -224,20 +303,11 @@
         opacity: 0.9;
     }
 
-    .favorite-icon-container {
+    /* Favorite button container */
+    .favorite-button-container {
         display: flex;
         align-items: center;
     }
-
-    .favorite-button {
-        background-color: rgba(255, 255, 255, 0.2);
-        transition: all 0.2s ease;
-    }
-
-        .favorite-button:hover {
-            background-color: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
-        }
 
     /* Weather Details Container */
     .weather-details-container {
@@ -307,7 +377,7 @@
         text-align: center;
     }
 
-    .location-button, .favorites-button {
+    .location-button, .forecast-button, .history-button {
         border-radius: 50px;
     }
 
@@ -318,19 +388,234 @@
         text-align: center;
         margin-top: 0.5rem;
     }
+
+    /* Forecast Styles */
+    .forecast-card {
+        border-radius: 24px !important;
+        overflow: hidden;
+        background-color: white;
+        box-shadow: none;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .forecast-day-card {
+        text-align: center;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border-radius: 16px !important;
+        background-color: white;
+        border: 1px solid rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+
+        .forecast-day-card:hover {
+            transform: translateY(-5px);
+        }
+
+    .forecast-day {
+        font-weight: 600;
+        color: #0083b0;
+    }
+
+    .forecast-temp-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0.5rem 0;
+    }
+
+    .forecast-temp {
+        font-weight: 700;
+    }
+
+    .forecast-emoji {
+        font-size: 1.5rem;
+        margin-left: 0.5rem;
+    }
+
+    .forecast-condition {
+        opacity: 0.8;
+    }
 </style>
 
 @code {
     private string searchQuery = "";
-    private WeatherData? weatherData;
+    private WeatherData CurrentWeather { get; set; }
+    private ForecastData ForecastWeather { get; set; }
     private bool IsLoading = false;
     private string? locationError = null;
-    private List<WeatherData> favorites = new List<WeatherData>();
+    private bool showForecast = false;
+
+   
+    private bool isFavorite = false;
+    private bool isProcessing = false;
+    private bool isAuthenticated = false;
+    private string userId = string.Empty;
+    private FavoriteCity existingFavoriteCity;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadFavorites();
-        await GetCurrentLocationWeather();
+        await GetUserIdAsync();
+
+       
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("city", out var city))
+        {
+            
+            searchQuery = city;
+        
+            await SearchCity();
+        }
+        else
+        {
+            
+            await GetCurrentLocationWeather();
+        }
+    }
+
+    private async Task GetUserIdAsync()
+    {
+        try
+        {
+            var authResponse = await AuthService.CheckAuth();
+            isAuthenticated = authResponse != null;
+
+            if (isAuthenticated && authResponse != null)
+            {
+                
+                userId = authResponse.Id;
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error getting user information: {ex.Message}", Severity.Error);
+        }
+    }
+
+   
+    private async Task SaveSearchToHistory()
+    {
+        if (!isAuthenticated || string.IsNullOrEmpty(userId) ||
+            CurrentWeather == null || string.IsNullOrEmpty(CurrentWeather.City))
+            return;
+
+        try
+        {
+            
+            double temp = 0;
+            if (CurrentWeather.Temperature != null)
+            {
+                
+                string tempStr = new string(CurrentWeather.Temperature.Where(c => char.IsDigit(c) || c == '.').ToArray());
+                double.TryParse(tempStr, out temp);
+            }
+
+            var searchHistory = new UserSearchHistory
+                {
+                    UserId = userId,
+                    CityName = CurrentWeather.City,
+                    Temperature = temp,  
+                    Humidity = double.TryParse(CurrentWeather.Humidity.ToString(), out double humidity) ? humidity : 0,
+                    WindSpeed = double.TryParse(CurrentWeather.WindSpeed.ToString(), out double windSpeed) ? windSpeed : 0,
+                    WeatherCondition = CurrentWeather.Weather,
+                    Timestamp = DateTime.UtcNow
+                };
+
+            await UserHistoryService.AddSearchHistory(searchHistory);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error saving search history: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ViewSearchHistory()
+    {
+        if (!isAuthenticated)
+        {
+            Snackbar.Add("Please login to view search history", Severity.Warning);
+            return;
+        }
+
+        NavigationManager.NavigateTo("/history");
+    }
+
+    private async Task CheckFavoriteStatusAsync()
+    {
+        if (!isAuthenticated || string.IsNullOrEmpty(userId) ||
+            CurrentWeather == null || string.IsNullOrEmpty(CurrentWeather.City))
+            return;
+
+        try
+        {
+            isProcessing = true;
+
+           
+            var favorites = await FavoriteCityService.GetUserFavoriteCitiesAsync(userId);
+            existingFavoriteCity = favorites.FirstOrDefault(c =>
+                c.CityName.Equals(CurrentWeather.City, StringComparison.OrdinalIgnoreCase));
+
+            isFavorite = existingFavoriteCity != null;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error checking favorite status: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetFavoriteIcon() => isFavorite ? Icons.Material.Filled.Favorite : Icons.Material.Outlined.FavoriteBorder;
+
+    private Color GetFavoriteColor() => isFavorite ? Color.Error : Color.Default;
+
+    private async Task ToggleFavoriteAsync()
+    {
+        if (!isAuthenticated)
+        {
+            Snackbar.Add("Please login to manage favorites", Severity.Warning);
+            return;
+        }
+
+        if (CurrentWeather == null || string.IsNullOrEmpty(CurrentWeather.City))
+            return;
+
+        try
+        {
+            isProcessing = true;
+
+            if (isFavorite && existingFavoriteCity != null)
+            {
+                // Remove from favorites
+                await FavoriteCityService.RemoveFromFavoritesAsync(existingFavoriteCity.Id, userId);
+                isFavorite = false;
+                existingFavoriteCity = null;
+                Snackbar.Add($"{CurrentWeather.City} removed from favorites", Severity.Success);
+            }
+            else
+            {
+                // Add to favorites
+                existingFavoriteCity = await FavoriteCityService.AddToFavoritesAsync(CurrentWeather.City, userId);
+                isFavorite = true;
+                Snackbar.Add($"{CurrentWeather.City} added to favorites", Severity.Success);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error updating favorites: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
     }
 
     private async Task GetCurrentLocationWeather()
@@ -339,6 +624,7 @@
         {
             IsLoading = true;
             locationError = null;
+            showForecast = false;
             StateHasChanged();
 
             var location = await JSRuntime.InvokeAsync<GeoLocation>("getCurrentLocation");
@@ -348,10 +634,17 @@
                 return;
             }
 
-            weatherData = await WeatherService.GetWeatherByCoordinatesAsync(location.Latitude, location.Longitude);
-            if (weatherData == null)
+            CurrentWeather = await WeatherService.GetWeatherByCoordinatesAsync(location.Latitude, location.Longitude);
+            if (CurrentWeather == null)
             {
                 locationError = "Could not fetch weather data for your location.";
+            }
+            else
+            {
+               
+                await CheckFavoriteStatusAsync();
+                
+                await SaveSearchToHistory();
             }
         }
         catch (Exception ex)
@@ -372,20 +665,71 @@
 
         IsLoading = true;
         locationError = null;
+        showForecast = false;
         StateHasChanged();
 
         try
         {
-            weatherData = await WeatherService.GetCurrentWeatherAsync(searchQuery);
+            CurrentWeather = await WeatherService.GetCurrentWeatherAsync(searchQuery);
 
-            if (weatherData == null)
+            if (CurrentWeather == null)
             {
                 locationError = $"No weather data found for '{searchQuery}'.";
+            }
+            else
+            {
+
+                await CheckFavoriteStatusAsync();
+
+                await SaveSearchToHistory();
             }
         }
         catch (Exception ex)
         {
             locationError = $"Error: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ViewForecast()
+    {
+        if (CurrentWeather == null || string.IsNullOrEmpty(CurrentWeather.City))
+            return;
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var simpleForecasts = await WeatherService.GetWeatherForecastAsync(CurrentWeather.City);
+            if (simpleForecasts != null)
+            {
+                ForecastWeather = new ForecastData
+                    {
+                        City = CurrentWeather.City,
+                        DailyForecasts = simpleForecasts.Select(f => new DailyForecast
+                        {
+                            Date = DateTime.Parse(f.Date),
+                            Temperature = f.Temperature,
+                            Weather = f.Weather
+                        }).ToList()
+                    };
+                showForecast = true;
+            }
+            else
+            {
+                locationError = "Failed to load forecast.";
+                showForecast = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            locationError = $"Failed to load forecast: {ex.Message}";
+            showForecast = false;
         }
         finally
         {
@@ -417,60 +761,5 @@
             "wind" => "💨",
             _ => "🌈"
         };
-    }
-
-    private async Task LoadFavorites()
-    {
-        try
-        {
-            // Try to load favorites from browser local storage
-            var favoritesJson = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "weatherFavorites");
-            if (!string.IsNullOrEmpty(favoritesJson))
-            {
-                favorites = System.Text.Json.JsonSerializer.Deserialize<List<WeatherData>>(favoritesJson) ?? new List<WeatherData>();
-            }
-        }
-        catch (Exception)
-        {
-            // If there's an error, initialize with empty list
-            favorites = new List<WeatherData>();
-        }
-    }
-
-    private async Task SaveFavorites()
-    {
-        var favoritesJson = System.Text.Json.JsonSerializer.Serialize(favorites);
-        await JSRuntime.InvokeVoidAsync("localStorage.setItem", "weatherFavorites", favoritesJson);
-    }
-
-    private bool IsFavorite(string city)
-    {
-        return favorites.Any(f => f.City?.Equals(city, StringComparison.OrdinalIgnoreCase) == true);
-    }
-
-    private async Task ToggleFavorite(WeatherData data)
-    {
-        if (data == null) return;
-
-        if (IsFavorite(data.City))
-        {
-            // Remove from favorites
-            favorites.RemoveAll(f => f.City?.Equals(data.City, StringComparison.OrdinalIgnoreCase) == true);
-        }
-        else
-        {
-            // Add to favorites
-            favorites.Add(new WeatherData
-                {
-                    City = data.City,
-                    Temperature = data.Temperature,
-                    Humidity = data.Humidity,
-                    WindSpeed = data.WindSpeed,
-                    Weather = data.Weather
-                });
-        }
-
-        await SaveFavorites();
-        StateHasChanged();
     }
 }

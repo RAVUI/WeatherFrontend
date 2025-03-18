@@ -1,0 +1,101 @@
+﻿@page "/history"
+@using WeatherFrontend.Services
+@inject UserHistoryService UserHistoryService
+@inject AuthService AuthService
+@using WeatherFrontend.Models
+
+<MudContainer MaxWidth="MaxWidth.Medium">
+    @if (isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (userHistory != null)
+    {
+        <MudTable Items="@userHistory" Hover="true" Breakpoint="Breakpoint.Sm">
+            <HeaderContent>
+                <MudTh>City</MudTh>
+                <MudTh>Temperature</MudTh>
+                <MudTh>Humidity</MudTh>
+                <MudTh>Wind Speed</MudTh>
+                <MudTh>Weather Condition</MudTh>
+                <MudTh>Timestamp</MudTh>
+                <MudTh>Actions</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="City">@context.CityName</MudTd>
+                <MudTd DataLabel="Temperature">@context.Temperature</MudTd>
+                <MudTd DataLabel="Humidity">@context.Humidity</MudTd>
+                <MudTd DataLabel="Wind Speed">@context.WindSpeed</MudTd>
+                <MudTd DataLabel="Weather Condition">@context.WeatherCondition</MudTd>
+                <MudTd DataLabel="Timestamp">@context.Timestamp</MudTd>
+                <MudTd DataLabel="Actions">
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteHistory(context.Id)" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+
+        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ClearHistory">Clear All History</MudButton>
+    }
+    else
+    {
+        <MudText Typo="Typo.body1">No search history available.</MudText>
+    }
+</MudContainer>
+
+@code {
+    private List<UserSearchHistory> userHistory;
+    private string UserId;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadHistory();
+    }
+
+    private async Task LoadHistory()
+    {
+        isLoading = true;
+        try
+        {
+            var authCheckResponse = await AuthService.CheckAuth();
+            if (authCheckResponse != null)
+            {
+                UserId = authCheckResponse.Id;
+                userHistory = await UserHistoryService.GetUserHistory(UserId);
+            }
+            else
+            {
+                
+                userHistory = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            
+            Console.WriteLine($"Error loading history: {ex.Message}");
+            userHistory = null;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task DeleteHistory(string historyId)
+    {
+        if (UserId != null)
+        {
+            await UserHistoryService.DeleteSearchHistory(historyId, UserId);
+            await LoadHistory();
+        }
+    }
+
+    private async Task ClearHistory()
+    {
+        if (UserId != null)
+        {
+            await UserHistoryService.ClearAllUserSearchHistory(UserId);
+            await LoadHistory();
+        }
+    }
+}

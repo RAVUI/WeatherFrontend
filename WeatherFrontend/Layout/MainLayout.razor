@@ -1,40 +1,55 @@
-﻿@* Required *@
-<MudThemeProvider />
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-@inherits LayoutComponentBase
+﻿@inherits LayoutComponentBase
 @using MudBlazor
+@using Blazored.LocalStorage
 @inject AuthService AuthService
 @inject NavigationManager Navigation
-@using Microsoft.AspNetCore.Components.Authorization
+@inject ILocalStorageService LocalStorage
+@inject IDialogService DialogService
 
-<MudLayout>
-    
-        
-        <MudSpacer />
-        <AuthorizeView>
-            <Authorized>
-                <MudButton Variant="Variant.Text" Color="Color.Inherit" Href="/logout">Logout</MudButton>
-            </Authorized>
-        </AuthorizeView>
-    
-    <div style="display: flex; height: 100vh;">
-        <NavMenu />
-        <div class="main-content-wrapper">
-            <div class="main-content-container">
-                @Body
-            </div>
-        </div>
-    </div>
-</MudLayout>
+<MudThemeProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+
+<AuthorizeView>
+    <Authorizing>
+        <MudProgressCircular Indeterminate="true" />
+    </Authorizing>
+    <NotAuthorized>
+        <RedirectToLogin />
+    </NotAuthorized>
+    <Authorized>
+        @if (authChecked)
+        {
+            <MudLayout>
+                <MudSpacer />
+
+                <div style="display: flex; height: calc(100vh - 64px);">
+                    @* Sidebar *@
+                    <NavMenu />
+
+                    @* Main Content Area *@
+                    <MudMainContent Class="main-content-wrapper">
+                        <div class="main-content-container">
+                            @Body
+                        </div>
+                    </MudMainContent>
+                </div>
+            </MudLayout>
+        }
+        else
+        {
+            <MudProgressCircular Indeterminate="true" />
+        }
+    </Authorized>
+</AuthorizeView>
 
 <style>
     .main-content-wrapper {
         flex-grow: 1;
         display: flex;
         padding: 10px;
-        background-color: #f5f5f5;
+        /* background-color: #f5f5f5; */
         overflow: auto;
     }
 
@@ -42,7 +57,7 @@
         width: 100%;
         background-color: white;
         border-radius: 15px;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         padding: 20px;
         display: flex;
         flex-direction: column;
@@ -51,16 +66,25 @@
 </style>
 
 @code {
-    private bool isAuthenticated;
+    private bool authChecked = false;
 
     protected override async Task OnInitializedAsync()
     {
-        // Use AuthService to check authentication status
-        isAuthenticated = await AuthService.IsAuthenticated();
-        // Note: This won't update AuthorizeView dynamically unless AuthenticationStateProvider is synced
-        if (!isAuthenticated && !Navigation.Uri.Contains("/login") && !Navigation.Uri.Contains("/register"))
+        try
+        {
+            var authResult = await AuthService.CheckAuth();
+            if (authResult == null)
+            {
+                Navigation.NavigateTo("/login");
+            }
+        }
+        catch (Exception ex)
         {
             Navigation.NavigateTo("/login");
+        }
+        finally
+        {
+            authChecked = true;
         }
     }
 }

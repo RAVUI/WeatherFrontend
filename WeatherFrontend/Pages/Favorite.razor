@@ -1,0 +1,137 @@
+﻿@page "/favorites"
+@using WeatherFrontend.Models
+@using WeatherFrontend.Services
+@inject IFavoriteCityService FavoriteCityService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
+    <MudPaper Elevation="3" Class="pa-4">
+        <MudText Typo="Typo.h5" Class="mb-4">Your Favorite Cities</MudText>
+
+        @if (isLoading)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="d-flex mx-auto" />
+        }
+        else if (!isAuthenticated)
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4">Please login to view your favorite cities.</MudAlert>
+        }
+        else if (!favoriteCities.Any())
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4">You don't have any favorite cities yet.</MudAlert>
+        }
+        else
+        {
+            <MudList T="FavoriteCity">
+                @foreach (var city in favoriteCities)
+                {
+                    <MudListItem T="FavoriteCity" Value="@city">
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.h6">@city.CityName</MudText>
+                            <div>
+                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
+                                             Color="Color.Error" 
+                                             Size="Size.Small"
+                                             OnClick="() => RemoveFavoriteAsync(city)" 
+                                             Disabled="@isProcessing" />
+                                <MudIconButton Icon="@Icons.Material.Filled.Search" 
+                                             Color="Color.Primary" 
+                                             Size="Size.Small"
+                                             OnClick="() => ViewWeatherForCity(city.CityName)" 
+                                             Disabled="@isProcessing" />
+                            </div>
+                        </div>
+                        <MudText Typo="Typo.caption">Added on @city.AddedDate.ToLocalTime().ToString("MM/dd/yyyy")</MudText>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        }
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<FavoriteCity> favoriteCities = new();
+    private bool isLoading = true;
+    private bool isProcessing = false;
+    private bool isAuthenticated = false;
+    private string userId = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetUserInfoAndLoadFavoritesAsync();
+    }
+
+    private async Task GetUserInfoAndLoadFavoritesAsync()
+    {
+        try
+        {
+            isLoading = true;
+            
+            var authCheckResponse = await AuthService.CheckAuth();
+            isAuthenticated = authCheckResponse != null;
+            
+            if (isAuthenticated && authCheckResponse != null)
+            {
+                userId = authCheckResponse.Id;
+                
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    await LoadFavoriteCitiesAsync();
+                }
+                else
+                {
+                    Snackbar.Add("Unable to identify user. Please try logging in again.", Severity.Warning);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading user information: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadFavoriteCitiesAsync()
+    {
+        try
+        {
+            favoriteCities = await FavoriteCityService.GetUserFavoriteCitiesAsync(userId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error loading favorite cities: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RemoveFavoriteAsync(FavoriteCity city)
+    {
+        try
+        {
+            isProcessing = true;
+            await FavoriteCityService.RemoveFromFavoritesAsync(city.Id, userId);
+            favoriteCities.Remove(city);
+            Snackbar.Add($"{city.CityName} removed from favorites", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error removing city: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ViewWeatherForCity(string cityName)
+    {
+        var encodedCityName = Uri.EscapeDataString(cityName);
+        NavigationManager.NavigateTo($"/home?city={encodedCityName}");
+    }
+}

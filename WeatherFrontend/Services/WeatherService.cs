@@ -13,7 +13,7 @@ public class WeatherService
         _httpClient = httpClient;
     }
 
-    // Fetch weather by city name
+    // Fetch current weather by city name
     public async Task<WeatherData?> GetCurrentWeatherAsync(string city)
     {
         if (string.IsNullOrWhiteSpace(city))
@@ -49,6 +49,42 @@ public class WeatherService
             return null;
         }
     }
+
+   public async Task<List<SimpleForecast>?> GetWeatherForecastAsync(string city)
+{
+    if (string.IsNullOrWhiteSpace(city))
+    {
+        Console.WriteLine("Invalid city name.");
+        return null;
+    }
+
+    try
+    {
+        string apiUrl = $"api/weather/forecast?city={Uri.EscapeDataString(city)}";
+        Console.WriteLine($"Calling API: {apiUrl}");
+
+        HttpResponseMessage response = await _httpClient.GetAsync(apiUrl);
+        Console.WriteLine($"API response status: {response.StatusCode}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            var simpleForecasts = await response.Content.ReadFromJsonAsync<List<SimpleForecast>>();
+            Console.WriteLine($"Got forecast for city: {city}");
+            return simpleForecasts;
+        }
+        else
+        {
+            string errorContent = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"API Error: {response.StatusCode}, Details: {errorContent}");
+            return null;
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Exception in GetWeatherForecastAsync: {ex.Message}");
+        return null;
+    }
+}
 
     // Fetch weather by coordinates (Latitude & Longitude)
     public async Task<WeatherData?> GetWeatherByCoordinatesAsync(double latitude, double longitude)
