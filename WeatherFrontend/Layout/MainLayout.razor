@@ -10,7 +10,6 @@
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-
 <AuthorizeView>
     <Authorizing>
         <MudProgressCircular Indeterminate="true" />
@@ -24,9 +23,9 @@
             <MudLayout>
                 <MudSpacer />
 
-                <div style="display: flex; height: calc(100vh - 64px);">
+                <div style="display: flex; height: calc(100vh - 64px); position: relative;">
                     @* Sidebar *@
-                    <NavMenu />
+                    <NavMenu OnProfileClick="ToggleProfilePopover" />
 
                     @* Main Content Area *@
                     <MudMainContent Class="main-content-wrapper">
@@ -34,6 +33,61 @@
                             @Body
                         </div>
                     </MudMainContent>
+
+                    @* Profile Popover *@
+                    <MudPopover Open="@_isProfilePopoverOpen"
+                                AnchorOrigin="Origin.BottomLeft"
+                                TransformOrigin="Origin.TopLeft"
+                                Class="profile-popover"
+                                Style="margin-top: 160px; margin-left: 90px;"
+                                Paper="true"
+                                Elevation="5"
+                                RelativeWidth="false"
+                                OverflowBehavior="OverflowBehavior.FlipOnOpen">
+                        <MudCard Elevation="0" Class="pa-4" Style="width: 250px; border-radius: 12px;">
+                            <MudText Typo="Typo.h6" Class="d-flex justify-center mb-3" Color="Color.Primary">
+                                User Details
+                            </MudText>
+                            <MudDivider Class="mb-4" />
+                            <MudItem xs="12" Class="d-flex justify-center mb-4">
+                                <MudAvatar Color="Color.Primary" Size="Size.Large" Style="font-size: 1.5rem;">
+                                    @(string.IsNullOrEmpty(_userProfile.Name) ? "?" : _userProfile.Name.Substring(0, 1).ToUpper())
+                                </MudAvatar>
+                            </MudItem>
+                            <MudItem xs="12" Class="mb-4">
+                                <MudTextField @bind-Value="_userProfile.Name"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="true"
+                                              Margin="Margin.Dense"
+                                              Class="custom-text-field" />
+
+                                <MudTextField @bind-Value="_userProfile.Email"
+                                              Variant="Variant.Outlined"
+                                              ReadOnly="true"
+                                              Margin="Margin.Dense"
+                                              Class="custom-text-field mt-3" />
+                            </MudItem>
+                            <MudDivider Class="mb-4" />
+                            <div class="d-flex justify-space-between w-100">
+                                <MudButton Color="Color.Error"
+                                           Variant="Variant.Filled"
+                                           OnClick="HandleLogout"
+                                           Size="Size.Small"
+                                           Class="flex-grow-1 mr-2"
+                                           StartIcon="@Icons.Material.Filled.Logout">
+                                    Logout
+                                </MudButton>
+                                <MudButton Color="Color.Default"
+                                           Variant="Variant.Outlined"
+                                           OnClick="CloseProfilePopover"
+                                           Size="Size.Small"
+                                           Class="flex-grow-1"
+                                           StartIcon="@Icons.Material.Filled.Close">
+                                    Close
+                                </MudButton>
+                            </div>
+                        </MudCard>
+                    </MudPopover>
                 </div>
             </MudLayout>
         }
@@ -49,7 +103,6 @@
         flex-grow: 1;
         display: flex;
         padding: 10px;
-        /* background-color: #f5f5f5; */
         overflow: auto;
     }
 
@@ -63,10 +116,42 @@
         flex-direction: column;
         overflow: auto;
     }
+
+    .profile-popover {
+        z-index: 1000;
+    }
+
+    .custom-text-field {
+        background-color: #f5f5f5;
+        border-radius: 8px;
+    }
+
+        .custom-text-field .mud-input-slot {
+            font-size: 1rem !important;
+            color: #333 !important;
+            text-align: center !important;
+        }
+
+        .custom-text-field .mud-input-label {
+            display: none !important; 
+        }
+
+        .custom-text-field .mud-input {
+            padding-left: 10px !important;
+            padding-right: 10px !important;
+        }
 </style>
 
 @code {
     private bool authChecked = false;
+    private bool _isProfilePopoverOpen = false;
+    private UserProfile _userProfile = new UserProfile();
+
+    public class UserProfile
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -77,6 +162,10 @@
             {
                 Navigation.NavigateTo("/login");
             }
+            else
+            {
+                await LoadUserProfile();
+            }
         }
         catch (Exception ex)
         {
@@ -86,5 +175,55 @@
         {
             authChecked = true;
         }
+    }
+
+    private void ToggleProfilePopover()
+    {
+        _isProfilePopoverOpen = !_isProfilePopoverOpen;
+    }
+
+    private void CloseProfilePopover()
+    {
+        _isProfilePopoverOpen = false;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.Logout();
+        Navigation.NavigateTo("/login", forceLoad: true);
+        _isProfilePopoverOpen = false;
+    }
+
+    private async Task LoadUserProfile()
+    {
+        try
+        {
+            var authCheckResponse = await AuthService.CheckAuth();
+            if (authCheckResponse != null)
+            {
+                _userProfile.Email = authCheckResponse.Email;
+                _userProfile.Name = ExtractNameFromEmail(_userProfile.Email);
+            }
+        }
+        catch (Exception ex)
+        {
+            
+        }
+    }
+
+    private string ExtractNameFromEmail(string email)
+    {
+        if (string.IsNullOrEmpty(email))
+            return string.Empty;
+
+       
+        string namePart = email.Split('@')[0]; 
+
+        
+        namePart = new string(namePart.Where(c => !char.IsDigit(c)).ToArray()); 
+
+        
+        var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo;
+        return textInfo.ToTitleCase(namePart); 
     }
 }

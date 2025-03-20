@@ -1,55 +1,22 @@
 ﻿@inject NavigationManager Navigation
-@inject IDialogService DialogService
 
 @code {
     private bool isExpanded = false;
+
+    [Parameter]
+    public EventCallback OnProfileClick { get; set; }
+
     void ToggleSidebar()
     {
         isExpanded = !isExpanded;
     }
-
-    private void OpenProfileDialog()
-    {
-        var options = new DialogOptions
-            {
-                CloseButton = true,
-                MaxWidth = MaxWidth.Medium,
-                FullWidth = true,
-                CloseOnEscapeKey = true
-            };
-
-        var dialog = DialogService.Show<ProfileDialog>("User Profile", options);
-        _ = HandleDialogResult(dialog);
-    }
-
-    private async Task HandleDialogResult(IDialogReference dialog)
-    {
-        var result = await dialog.Result;
-        if (result.Canceled)
-        {
-            Console.WriteLine("Profile dialog was canceled.");
-        }
-        else
-        {
-            var profile = result.Data as ProfileDialog.UserProfile;
-            if (profile != null)
-            {
-                Console.WriteLine($"Profile updated: ID: {profile.Id}, Email: {profile.Email}");
-                
-            }
-            else
-            {
-                Console.WriteLine("Profile dialog was closed without returning profile data.");
-            }
-        }
-    }
 }
 
-<div style="width: @(isExpanded ? "200px" : "70px"); background-color: #ffffff; box-shadow: 3px 0 10px rgba(0, 0, 0, 0.15); display: flex; flex-direction: column; padding-top: 10px; border-radius: 15px 15px 15px; margin: 10px 0 10px 10px; transition: width 0.3s ease; align-items: center; gap: 10px;">
-    @* Menu Button (Toggles Sidebar) *@
+<div style="width: @(isExpanded ? "200px" : "70px"); background-color: #ffffff; box-shadow: 3px 0 10px rgba(0, 0, 0, 0.15); display: flex; flex-direction: column; padding-top: 7px; border-radius: 15px 15px 15px; margin: 10px 0 10px 10px; transition: width 0.3s ease; align-items: center; gap: 7px;">
+    
     <MudIconButton Icon="@Icons.Material.Filled.Menu" Class="sidebar-icon" @onclick="ToggleSidebar" />
 
-    @* Navigation Icons with Names *@
+   
     <MudNavLink Href="/home" Icon="@Icons.Material.Filled.Home" Class="sidebar-item">
         <span class="sidebar-text">Home</span>
     </MudNavLink>
@@ -59,7 +26,10 @@
     <MudNavLink Href="/history" Icon="@Icons.Material.Filled.History" Class="sidebar-item">
         <span class="sidebar-text">History</span>
     </MudNavLink>
-    <MudNavLink @onclick="OpenProfileDialog"
+    <MudNavLink Href="/forecast" Icon="@Icons.Material.Filled.WbSunny" Class="sidebar-item">
+        <span class="sidebar-text">Forecast</span>
+    </MudNavLink>
+    <MudNavLink @onclick="OnProfileClick"
                 Icon="@Icons.Material.Filled.AccountCircle"
                 Class="sidebar-item"
                 Style="margin-top: auto; margin-bottom: 20px;">
@@ -75,7 +45,6 @@
         width: 100%;
         padding: 10px;
         text-decoration: none;
-        /* color: black; */
         transition: 0.3s;
     }
 

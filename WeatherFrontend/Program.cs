@@ -6,6 +6,7 @@ using MudBlazor.Services;
 using WeatherFrontend.Services;
 using Weatherfrontend;
 using Blazored.LocalStorage;
+using WeatherFrontend.Models;
 
 
 
@@ -15,7 +16,22 @@ builder.RootComponents.Add<HeadOutlet>("head::after");
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();
 
-builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7125/") });
+
+builder.Services.AddSingleton(sp =>
+{
+    var configuration = builder.Configuration;
+    return configuration.GetSection("ApiSettings").Get<ApiSettings>();
+});
+
+
+builder.Services.AddScoped(sp =>
+{
+    var apiSettings = sp.GetRequiredService<ApiSettings>();
+    var baseAddress = new Uri($"{apiSettings.BaseAddress}{apiSettings.Version}/");
+    return new HttpClient { BaseAddress = baseAddress };
+});
+
+//builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri("https://localhost:7125/") });
 
 
 // Add Authentication services
@@ -33,4 +49,6 @@ builder.Services.AddMudServices(config =>
     config.PopoverOptions.ThrowOnDuplicateProvider = false;
 });
 
-await builder.Build().RunAsync();
+await builder.Build().RunAsync();  
+
+

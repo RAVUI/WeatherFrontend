@@ -38,7 +38,7 @@ namespace WeatherFrontend.Services
                     return new List<FavoriteCity>();
                 }
 
-                var response = await _httpClient.GetAsync($"api/favoritecities/{userId}");
+                var response = await _httpClient.GetAsync($"v1.0/favoritecities/{userId}"); 
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -67,13 +67,13 @@ namespace WeatherFrontend.Services
 
                 var favoriteCity = new FavoriteCity
                 {
-                    Id = Guid.NewGuid().ToString(), 
+                    Id = Guid.NewGuid().ToString(),
                     UserId = userId,
                     CityName = cityName,
                     AddedDate = DateTime.UtcNow
                 };
 
-                var response = await _httpClient.PostAsJsonAsync("api/favoritecities", favoriteCity);
+                var response = await _httpClient.PostAsJsonAsync("v1.0/favoritecities", favoriteCity); 
 
                 if (response.IsSuccessStatusCode)
                 {
@@ -91,7 +91,7 @@ namespace WeatherFrontend.Services
             }
             catch (InvalidOperationException)
             {
-                throw; 
+                throw;
             }
             catch (Exception ex)
             {
@@ -109,7 +109,7 @@ namespace WeatherFrontend.Services
                     throw new ArgumentException("City ID and user ID are required");
                 }
 
-                var response = await _httpClient.DeleteAsync($"api/favoritecities/{cityId}?userId={userId}");
+                var response = await _httpClient.DeleteAsync($"v1.0/favoritecities/{cityId}?userId={userId}");
 
                 if (response.IsSuccessStatusCode)
                 {

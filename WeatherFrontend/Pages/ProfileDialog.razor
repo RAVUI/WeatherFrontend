@@ -1,117 +1,182 @@
-﻿@inherits MudComponentBase
-@inject ISnackbar Snackbar
-@inject IDialogService DialogService
-@inject AuthService AuthService
-@inject NavigationManager Navigation
-@using MudBlazor
-@using MudBlazor.Dialog
+﻿@* @inherits MudComponentBase *@
+@* @inject ISnackbar Snackbar *@
+@* @inject IDialogService DialogService *@
+@* @inject AuthService AuthService *@
+@* @inject NavigationManager Navigation *@
+@* @using MudBlazor *@
+@* @using MudBlazor.Dialog *@
+@* @using System.Threading.Tasks *@
 
-<MudDialog Options="new DialogOptions { CloseButton = true, CloseOnEscapeKey = false }">
-    <TitleContent>
-        <MudText Typo="Typo.h6" Class="d-flex align-center">
-            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" Class="mr-3" />
-            Profile Details
-            <MudSpacer />
-        </MudText>
-    </TitleContent>
+@* <style> *@
+@*     /* Custom style to hide the dialog close button */ *@
+@*     ::deep .mud-dialog-close-button { *@
+@*         display: none !important; *@
+@*     } *@
 
-    <DialogContent>
-        <div @onclick:stopPropagation="true">
-            <MudGrid>
-                <MudItem xs="12" Class="d-flex justify-center">
-                    <MudAvatar Image="path/to/default/profile/image.jpg" Size="Size.Large" />
-                </MudItem>
+@*     /* Adjust the width of the dialog */ *@
+@*     ::deep .mud-dialog { *@
+@*         max-width: 200px !important; *@
+@*         width: 85% !important; *@
+@*     } *@
 
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_userProfile.Id"
-                                  Label="User ID"
-                                  Variant="Variant.Outlined"
-                                  ReadOnly="true" />
-                </MudItem>
+@*     /* Reduce vertical spacing */ *@
+@*     ::deep .mud-dialog-content { *@
+@*         padding-top: 8px !important; *@
+@*         padding-bottom: 8px !important; *@
+@*     } *@
 
-                <MudItem xs="12">
-                    <MudTextField @bind-Value="_userProfile.Email"
-                                  Label="Email"
-                                  Variant="Variant.Outlined"
-                                  ReadOnly="true" />
-                </MudItem>
-            </MudGrid>
-        </div>
-    </DialogContent>
+@*     /* Add padding to the form fields */ *@
+@*     ::deep .mud-input { *@
+@*         padding-left: 10px !important; *@
+@*         padding-right: 10px !important; *@
+@*     } *@
 
-    <DialogActions>
-        <MudButton Color="Color.Error"
-                   Variant="Variant.Filled"
-                   OnClick="HandleLogout">
-            Logout
-        </MudButton>
-        <MudButton Color="Color.Default"
-                   Variant="Variant.Text"
-                   OnClick="Close">
-            Close
-        </MudButton>
-    </DialogActions>
-</MudDialog>
+@*     /* Center text fields and increase size */ *@
+@*     ::deep .mud-input-control { *@
+@*         text-align: center !important; *@
+@*     } *@
 
-@code {
-    [CascadingParameter]
-    MudDialogInstance MudDialog { get; set; }
+@*     ::deep .mud-input-slot { *@
+@*         font-size: 1.1rem !important; *@
+@*     } *@
 
-    [Parameter]
-    public string PreviousPage { get; set; } = "/home";
+@*     /* Center label text */ *@
+@*     ::deep .mud-input-label { *@
+@*         width: 100% !important; *@
+@*         text-align: center !important; *@
+@*     } *@
+@* </style> *@
 
-    private UserProfile _userProfile = new UserProfile();
+@* <MudDialog DisableBackdropClick="false"> *@
+@*     <TitleContent> *@
+@*         <MudText Typo="Typo.h6" Class="d-flex justify-center"> *@
+@*             User Details *@
+@*         </MudText> *@
+@*     </TitleContent> *@
+@*     <DialogContent> *@
+@*         <div @onclick:stopPropagation="true"> *@
+@*             <MudDivider /> *@
+@*             <MudItem xs="12" Class="d-flex justify-center my-4"> *@
+@*                 <MudAvatar Color="Color.Primary" Size="Size.Large"> *@
+@*                     @(string.IsNullOrEmpty(_userProfile.Name) ? "?" : _userProfile.Name.Substring(0, 1).ToUpper()) *@
+@*                 </MudAvatar> *@
+@*             </MudItem> *@
+@*             <MudDivider /> *@
+@*             <MudItem xs="12" Class="my-4 px-2"> *@
+@*                 <MudTextField @bind-Value="_userProfile.Name" *@
+@*                               Label="Name" *@
+@*                               Variant="Variant.Outlined" *@
+@*                               ReadOnly="true" *@
+@*                               Margin="Margin.Dense" /> *@
 
-    public class UserProfile
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-    }
+@*                 <div class="py-3"></div> *@
 
-    protected override void OnInitialized()
-    {
-        // Ensure the dialog options are enforced
-        MudDialog.Options.CloseButton = true;
-        MudDialog.Options.CloseOnEscapeKey = false;
+@*                 <MudTextField @bind-Value="_userProfile.Email" *@
+@*                               Label="Email" *@
+@*                               Variant="Variant.Outlined" *@
+@*                               ReadOnly="true" *@
+@*                               Margin="Margin.Dense" /> *@
+@*             </MudItem> *@
+@*             <MudDivider /> *@
+@*         </div> *@
+@*     </DialogContent> *@
+@*     <DialogActions> *@
+@*         <div class="d-flex justify-center w-100"> *@
+@*             <MudButton Color="Color.Error" *@
+@*                        Variant="Variant.Filled" *@
+@*                        OnClick="HandleLogout" *@
+@*                        Size="Size.Small"> *@
+@*                 LOGOUT *@
+@*             </MudButton> *@
+@*             <MudButton Color="Color.Default" *@
+@*                        Variant="Variant.Text" *@
+@*                        OnClick="Close" *@
+@*                        Size="Size.Small" *@
+@*                        Class="ml-2"> *@
+@*                 CLOSE *@
+@*             </MudButton> *@
+@*         </div> *@
+@*     </DialogActions> *@
+@* </MudDialog> *@
 
-    }
+@* @code { *@
+@*     [CascadingParameter] *@
+@*     MudDialogInstance MudDialog { get; set; } *@
 
-    private void Close()
-    {
-        MudDialog.Close();
-        Navigation.NavigateTo(PreviousPage, forceLoad: false); // Use PreviousPage here
-    }
+@*     [Parameter] *@
+@*     public string PreviousPage { get; set; } = "/home"; *@
 
-    private async Task HandleLogout()
-    {
-        await AuthService.Logout();
-        Navigation.NavigateTo("/login", forceLoad: true);
-        MudDialog.Close();
-    }
+@*     private UserProfile _userProfile = new UserProfile(); *@
 
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadUserProfile();
-    }
+@*     public class UserProfile *@
+@*     { *@
+@*         public string Name { get; set; } = string.Empty; *@
+@*         public string Email { get; set; } = string.Empty; *@
+@*     } *@
 
-    private async Task LoadUserProfile()
-    {
-        try
-        {
-            var authCheckResponse = await AuthService.CheckAuth();
-            if (authCheckResponse != null)
-            {
-                _userProfile.Id = authCheckResponse.Id;
-                _userProfile.Email = authCheckResponse.Email;
-            }
-            else
-            {
-                Snackbar.Add("User not authenticated", Severity.Warning);
-            }
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Error loading profile: {ex.Message}", Severity.Error);
-        }
-    }
-}
+@*     protected override void OnInitialized() *@
+@*     { *@
+@*         if (MudDialog != null) *@
+@*         { *@
+@*             // Force close button removal through options *@
+@*             MudDialog.Options.CloseButton = false; *@
+@*             MudDialog.Options.CloseOnEscapeKey = true; *@
+@*             MudDialog.SetOptions(MudDialog.Options); *@
+@*         } *@
+@*     } *@
+
+@*     private void Close() *@
+@*     { *@
+@*         MudDialog.Close(); *@
+@*         Navigation.NavigateTo(PreviousPage, forceLoad: false); *@
+@*     } *@
+
+@*     private async Task HandleLogout() *@
+@*     { *@
+@*         await AuthService.Logout(); *@
+@*         Navigation.NavigateTo("/login", forceLoad: true); *@
+@*         MudDialog.Close(); *@
+@*     } *@
+
+@*     protected override async Task OnInitializedAsync() *@
+@*     { *@
+@*         await LoadUserProfile(); *@
+@*     } *@
+
+@*     private async Task LoadUserProfile() *@
+@*     { *@
+@*         try *@
+@*         { *@
+@*             var authCheckResponse = await AuthService.CheckAuth(); *@
+@*             if (authCheckResponse != null) *@
+@*             { *@
+@*                 _userProfile.Email = authCheckResponse.Email; *@
+@*                 _userProfile.Name = ExtractNameFromEmail(_userProfile.Email); *@
+@*             } *@
+@*             else *@
+@*             { *@
+@*                 Snackbar.Add("User not authenticated", Severity.Warning); *@
+@*             } *@
+@*         } *@
+@*         catch (Exception ex) *@
+@*         { *@
+@*             Snackbar.Add($"Error loading profile: {ex.Message}", Severity.Error); *@
+@*         } *@
+@*     } *@
+
+@*     private string ExtractNameFromEmail(string email) *@
+@*     { *@
+@*         if (string.IsNullOrEmpty(email)) *@
+@*             return string.Empty; *@
+
+@*         // Extract the part before the @ symbol *@
+@*         string namePart = email.Split('@')[0]; *@
+
+@*         // Convert formats like "john.doe" or "john_doe" to "John Doe" *@
+@*         namePart = namePart.Replace('.', ' ').Replace('_', ' '); *@
+
+@*         // Capitalize each word *@
+@*         var textInfo = System.Globalization.CultureInfo.CurrentCulture.TextInfo; *@
+@*         return textInfo.ToTitleCase(namePart); *@
+@*     } *@
+@* } *@

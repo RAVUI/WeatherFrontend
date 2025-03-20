@@ -1,6 +1,7 @@
 ﻿using System.Net.Http.Json;
 using System.Text.Json;
 using Blazored.LocalStorage;
+using WeatherFrontend.Models;
 
 namespace WeatherFrontend.Services
 {
@@ -18,7 +19,7 @@ namespace WeatherFrontend.Services
         public async Task<LoginResponse> Login(string email, string password)
         {
             var response = await _httpClient.PostAsync(
-                $"api/auth/login?email={Uri.EscapeDataString(email)}&password={Uri.EscapeDataString(password)}",
+                $"v1.0/auth/login?email={Uri.EscapeDataString(email)}&password={Uri.EscapeDataString(password)}",
                 null);
 
             if (response.IsSuccessStatusCode)
@@ -36,7 +37,7 @@ namespace WeatherFrontend.Services
         public async Task<bool> Register(string email, string password)
         {
             var response = await _httpClient.PostAsync(
-                $"api/auth/register?email={Uri.EscapeDataString(email)}&password={Uri.EscapeDataString(password)}",
+                $"v1.0/auth/register?email={Uri.EscapeDataString(email)}&password={Uri.EscapeDataString(password)}",
                 null);
 
             return response.IsSuccessStatusCode;
@@ -44,7 +45,7 @@ namespace WeatherFrontend.Services
 
         public async Task<bool> Logout()
         {
-            var response = await _httpClient.PostAsync("api/auth/logout", null);
+            var response = await _httpClient.PostAsync($"v1.0/auth/logout", null);
             if (response.IsSuccessStatusCode)
             {
                 await _localStorage.RemoveItemAsync("authToken");
@@ -59,7 +60,7 @@ namespace WeatherFrontend.Services
             if (string.IsNullOrEmpty(token))
                 return null;
 
-            var response = await _httpClient.GetAsync($"api/auth/check?accessToken={Uri.EscapeDataString(token)}");
+            var response = await _httpClient.GetAsync($"v1.0/auth/check?accessToken={Uri.EscapeDataString(token)}");
             if (response.IsSuccessStatusCode)
             {
                 return await response.Content.ReadFromJsonAsync<AuthCheckResponse>();
@@ -69,9 +70,9 @@ namespace WeatherFrontend.Services
 
         public async Task<bool> ForgotPassword(string email)
         {
-            var response = await _httpClient.PostAsync(
-                $"api/auth/forgot-password?email={Uri.EscapeDataString(email)}",
-                null);
+            var url = $"v1.0/auth/forgot-password?email={Uri.EscapeDataString(email)}";
+            Console.WriteLine(_httpClient.BaseAddress + url);
+            var response = await _httpClient.PostAsync(url, null);
 
             if (response.IsSuccessStatusCode)
             {
@@ -84,7 +85,7 @@ namespace WeatherFrontend.Services
         public async Task<bool> ResetPassword(string accessToken, string newPassword, string confirmPassword)
         {
             var response = await _httpClient.PostAsync(
-                $"api/auth/reset-password?accessToken={Uri.EscapeDataString(accessToken)}&newPassword={Uri.EscapeDataString(newPassword)}&confirmPassword={Uri.EscapeDataString(confirmPassword)}",
+                $"v1.0/auth/reset-password?accessToken={Uri.EscapeDataString(accessToken)}&newPassword={Uri.EscapeDataString(newPassword)}&confirmPassword={Uri.EscapeDataString(confirmPassword)}",
                 null);
 
             if (response.IsSuccessStatusCode)
@@ -94,24 +95,5 @@ namespace WeatherFrontend.Services
             }
             return false;
         }
-    }
-
-    public class LoginResponse
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string AccessToken { get; set; } = string.Empty;
-        public Dictionary<string, object> Metadata { get; set; } = new();
-    }
-
-    public class AuthCheckResponse
-    {
-        public string Id { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-    }
-
-    public class MessageResponse
-    {
-        public string Message { get; set; } = string.Empty;
     }
 }

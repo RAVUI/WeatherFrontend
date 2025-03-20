@@ -6,50 +6,104 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-4">
-    <MudPaper Elevation="3" Class="pa-4">
-        <MudText Typo="Typo.h5" Class="mb-4">Your Favorite Cities</MudText>
+<MudContainer MaxWidth="MaxWidth.Medium" Class="mt-6">
+    <MudCard Elevation="3" Class="rounded-lg overflow-hidden">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <div class="d-flex align-center">
+                    <MudIcon Icon="@Icons.Material.Filled.Favorite" Color="Color.Secondary" Class="mr-3" />
+                    <MudText Typo="Typo.h5">Your Favorite Cities</MudText>
+                </div>
+            </CardHeaderContent>
+            <CardHeaderActions>
+                <MudTooltip Text="Refresh">
+                    <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" Size="Size.Medium"
+                                   OnClick="GetUserInfoAndLoadFavoritesAsync" Disabled="@isLoading" />
+                </MudTooltip>
+            </CardHeaderActions>
+        </MudCardHeader>
 
-        @if (isLoading)
-        {
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="d-flex mx-auto" />
-        }
-        else if (!isAuthenticated)
-        {
-            <MudAlert Severity="Severity.Info" Class="my-4">Please login to view your favorite cities.</MudAlert>
-        }
-        else if (!favoriteCities.Any())
-        {
-            <MudAlert Severity="Severity.Info" Class="my-4">You don't have any favorite cities yet.</MudAlert>
-        }
-        else
-        {
-            <MudList T="FavoriteCity">
-                @foreach (var city in favoriteCities)
-                {
-                    <MudListItem T="FavoriteCity" Value="@city">
-                        <div class="d-flex justify-space-between align-center">
-                            <MudText Typo="Typo.h6">@city.CityName</MudText>
-                            <div>
-                                <MudIconButton Icon="@Icons.Material.Filled.Delete" 
-                                             Color="Color.Error" 
-                                             Size="Size.Small"
-                                             OnClick="() => RemoveFavoriteAsync(city)" 
-                                             Disabled="@isProcessing" />
-                                <MudIconButton Icon="@Icons.Material.Filled.Search" 
-                                             Color="Color.Primary" 
-                                             Size="Size.Small"
-                                             OnClick="() => ViewWeatherForCity(city.CityName)" 
-                                             Disabled="@isProcessing" />
-                            </div>
+        <MudDivider />
+
+        <MudCardContent Class="pa-0">
+            @if (isLoading)
+            {
+                <div class="d-flex justify-center pa-8">
+                    <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+                </div>
+            }
+            else if (!isAuthenticated)
+            {
+                <MudAlert Severity="Severity.Info" Class="ma-4" Icon="@Icons.Material.Filled.Login" Variant="Variant.Filled">
+                    <div class="d-flex flex-column">
+                        <MudText>Please login to view your favorite cities.</MudText>
+                        <div class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/login"))">
+                                Login Now
+                            </MudButton>
                         </div>
-                        <MudText Typo="Typo.caption">Added on @city.AddedDate.ToLocalTime().ToString("MM/dd/yyyy")</MudText>
-                    </MudListItem>
-                    <MudDivider />
-                }
-            </MudList>
+                    </div>
+                </MudAlert>
+            }
+            else if (!favoriteCities.Any())
+            {
+                <MudAlert Severity="Severity.Info" Class="ma-4" Icon="@Icons.Material.Filled.LocationCity" Variant="Variant.Outlined">
+                    <div class="d-flex flex-column">
+                        <MudText>You don't have any favorite cities yet.</MudText>
+                        <div class="mt-3">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/home"))">
+                                Add Cities
+                            </MudButton>
+                        </div>
+                    </div>
+                </MudAlert>
+            }
+            else
+            {
+                <div class="pa-2">
+                    @foreach (var city in favoriteCities)
+                    {
+                        <MudPaper Elevation="0" Class="pa-4 mb-2 rounded-lg" Style="transition: all 0.2s ease">
+                            <div class="d-flex justify-space-between align-center">
+                                <div>
+                                    <MudText Typo="Typo.h6" Class="mb-0">@city.CityName</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Default">
+                                        Added on @city.AddedDate.ToLocalTime().ToString("MMMM dd, yyyy")
+                                    </MudText>
+                                </div>
+                                <div>
+                                    <MudTooltip Text="View Weather">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                                       Color="Color.Primary"
+                                                       Size="Size.Medium"
+                                                       OnClick="() => ViewWeatherForCity(city.CityName)"
+                                                       Disabled="@isProcessing" />
+                                    </MudTooltip>
+                                    <MudTooltip Text="Remove from Favorites">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                       Color="Color.Error"
+                                                       Size="Size.Medium"
+                                                       OnClick="() => RemoveFavoriteAsync(city)"
+                                                       Disabled="@isProcessing" />
+                                    </MudTooltip>
+                                </div>
+                            </div>
+                        </MudPaper>
+                        <MudDivider />
+                    }
+                </div>
+            }
+        </MudCardContent>
+
+        @if (favoriteCities.Any())
+        {
+            <MudCardActions Class="d-flex justify-end pa-4">
+                <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="@(() => NavigationManager.NavigateTo("/home"))">
+                    Find More Cities
+                </MudButton>
+            </MudCardActions>
         }
-    </MudPaper>
+    </MudCard>
 </MudContainer>
 
 @code {
@@ -69,14 +123,14 @@
         try
         {
             isLoading = true;
-            
+
             var authCheckResponse = await AuthService.CheckAuth();
             isAuthenticated = authCheckResponse != null;
-            
+
             if (isAuthenticated && authCheckResponse != null)
             {
                 userId = authCheckResponse.Id;
-                
+
                 if (!string.IsNullOrEmpty(userId))
                 {
                     await LoadFavoriteCitiesAsync();

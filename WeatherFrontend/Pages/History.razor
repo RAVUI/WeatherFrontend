@@ -2,50 +2,169 @@
 @using WeatherFrontend.Services
 @inject UserHistoryService UserHistoryService
 @inject AuthService AuthService
+@inject ISnackbar Snackbar
 @using WeatherFrontend.Models
 
-<MudContainer MaxWidth="MaxWidth.Medium">
+<div class="history-container">
+    <div class="history-header">
+        <div class="d-flex align-center">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Secondary" Class="mr-3" />
+            <MudText Typo="Typo.h5">Search History</MudText>
+        </div>
+        <MudTooltip Text="Refresh">
+            <MudIconButton Icon="@Icons.Material.Filled.Refresh" Color="Color.Default" OnClick="LoadHistory" />
+        </MudTooltip>
+    </div>
+
     @if (isLoading)
     {
-        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <div class="loading-container">
+            <MudProgressCircular Color="Color.Secondary" Indeterminate="true" Size="Size.Large" />
+        </div>
     }
-    else if (userHistory != null)
+    else if (errorMessage != null)
     {
-        <MudTable Items="@userHistory" Hover="true" Breakpoint="Breakpoint.Sm">
-            <HeaderContent>
-                <MudTh>City</MudTh>
-                <MudTh>Temperature</MudTh>
-                <MudTh>Humidity</MudTh>
-                <MudTh>Wind Speed</MudTh>
-                <MudTh>Weather Condition</MudTh>
-                <MudTh>Timestamp</MudTh>
-                <MudTh>Actions</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd DataLabel="City">@context.CityName</MudTd>
-                <MudTd DataLabel="Temperature">@context.Temperature</MudTd>
-                <MudTd DataLabel="Humidity">@context.Humidity</MudTd>
-                <MudTd DataLabel="Wind Speed">@context.WindSpeed</MudTd>
-                <MudTd DataLabel="Weather Condition">@context.WeatherCondition</MudTd>
-                <MudTd DataLabel="Timestamp">@context.Timestamp</MudTd>
-                <MudTd DataLabel="Actions">
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="() => DeleteHistory(context.Id)" />
-                </MudTd>
-            </RowTemplate>
-        </MudTable>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Secondary" OnClick="ClearHistory">Clear All History</MudButton>
+        <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="my-4">
+            <MudText>@errorMessage</MudText>
+            <MudButton Variant="Variant.Text" Color="Color.Inherit" OnClick="LoadHistory" Class="ml-auto">
+                Retry
+            </MudButton>
+        </MudAlert>
+    }
+    else if (userHistory != null && userHistory.Any())
+    {
+        <div class="table-container">
+            <MudTable Items="@userHistory" Hover="true" Striped="true" Class="history-table" Bordered="false">
+                <HeaderContent>
+                    <MudTh>City</MudTh>
+                    <MudTh>Temperature</MudTh>
+                    <MudTh>Humidity</MudTh>
+                    <MudTh>Wind Speed</MudTh>
+                    <MudTh>Weather Condition</MudTh>
+                    <MudTh>Timestamp</MudTh>
+                    <MudTh Style="width: 60px;">Actions</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="City">@context.CityName</MudTd>
+                    <MudTd DataLabel="Temperature">@context.Temperature</MudTd>
+                    <MudTd DataLabel="Humidity">@context.Humidity</MudTd>
+                    <MudTd DataLabel="Wind Speed">@context.WindSpeed</MudTd>
+                    <MudTd DataLabel="Weather">@context.WeatherCondition</MudTd>
+                    <MudTd DataLabel="Timestamp">@FormatTimestamp(context.Timestamp)</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="Delete">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="() => DeleteHistory(context.Id)" />
+                        </MudTooltip>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </div>
+        <div class="button-container">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.DeleteSweep"
+                       OnClick="ClearHistory"
+                       Class="clear-button">
+                Clear All History
+            </MudButton>
+        </div>
     }
     else
     {
-        <MudText Typo="Typo.body1">No search history available.</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="my-4">
+            <div class="empty-state">
+                <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Class="mb-3" />
+                <MudText>No search history available.</MudText>
+                <MudText Typo="Typo.body2" Class="mt-2">Search for cities to see your history here.</MudText>
+            </div>
+        </MudAlert>
     }
-</MudContainer>
+</div>
+
+<style>
+    .history-container {
+        max-width: 150%;
+        margin: 20px auto;
+        padding: 2 16px;
+    }
+
+    .history-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+
+    .loading-container {
+        display: flex;
+        justify-content: center;
+        padding: 40px;
+    }
+
+    .table-container {
+        width: 100%;
+        overflow-x: auto;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+    }
+
+    .history-table {
+        border-radius: 8px;
+        overflow: hidden;
+        width: 100%;
+    }
+
+        .history-table :deep(th),
+        .history-table :deep(td) {
+            border: none;
+            padding: 12px;
+        }
+
+        .history-table :deep(thead tr) {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
+        .history-table :deep(thead th) {
+            border-bottom: none;
+            font-weight: 600;
+        }
+
+    .button-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 24px;
+    }
+
+    .clear-button {
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-weight: 500;
+    }
+
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px 0;
+    }
+
+    /* Make the table responsive */
+    @@media (max-width: 768px) {
+        .history-table {
+            display: block;
+            overflow-x: auto;
+        }
+    }
+</style>
 
 @code {
     private List<UserSearchHistory> userHistory;
     private string UserId;
     private bool isLoading = true;
+    private string errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -55,47 +174,81 @@
     private async Task LoadHistory()
     {
         isLoading = true;
+        errorMessage = null;
         try
         {
+            Console.WriteLine("Loading history...");
             var authCheckResponse = await AuthService.CheckAuth();
             if (authCheckResponse != null)
             {
                 UserId = authCheckResponse.Id;
+                Console.WriteLine($"User authenticated, ID: {UserId}");
                 userHistory = await UserHistoryService.GetUserHistory(UserId);
+                Console.WriteLine($"History loaded: {userHistory?.Count} items");
             }
             else
             {
-                
+                Console.WriteLine("User not authenticated");
+                errorMessage = "Please login to view your search history.";
                 userHistory = null;
             }
         }
         catch (Exception ex)
         {
-            
             Console.WriteLine($"Error loading history: {ex.Message}");
+            errorMessage = $"Failed to load history: {ex.Message}";
             userHistory = null;
+            Snackbar.Add(errorMessage, Severity.Error);
         }
         finally
         {
             isLoading = false;
+            StateHasChanged();
         }
     }
 
     private async Task DeleteHistory(string historyId)
     {
-        if (UserId != null)
+        if (string.IsNullOrEmpty(UserId))
+        {
+            Snackbar.Add("User not authenticated.", Severity.Warning);
+            return;
+        }
+
+        try
         {
             await UserHistoryService.DeleteSearchHistory(historyId, UserId);
+            Snackbar.Add("History entry deleted.", Severity.Success);
             await LoadHistory();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error deleting history: {ex.Message}", Severity.Error);
         }
     }
 
     private async Task ClearHistory()
     {
-        if (UserId != null)
+        if (string.IsNullOrEmpty(UserId))
+        {
+            Snackbar.Add("User not authenticated.", Severity.Warning);
+            return;
+        }
+
+        try
         {
             await UserHistoryService.ClearAllUserSearchHistory(UserId);
+            Snackbar.Add("All history cleared.", Severity.Success);
             await LoadHistory();
         }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error clearing history: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string FormatTimestamp(DateTime timestamp)
+    {
+        return timestamp.ToString("MMM dd, yyyy HH:mm");
     }
 }

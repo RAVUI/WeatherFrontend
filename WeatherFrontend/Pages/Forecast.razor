@@ -1,0 +1,368 @@
+﻿@page "/forecast"
+@inject WeatherService WeatherService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@using WeatherFrontend.Models
+@using Microsoft.AspNetCore.WebUtilities
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4 pb-8">
+    <MudPaper Elevation="3" Class="mb-6">
+        <MudToolBar Dense="true">
+            <MudText Typo="Typo.h5">Weather Forecast</MudText>
+            <MudSpacer />
+            <MudChip Icon="@Icons.Material.Filled.LocationOn" Color="Color.Primary">@city</MudChip>
+        </MudToolBar>
+    </MudPaper>
+
+    @if (isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+        <MudText Align="Align.Center" Class="my-4">Loading weather data...</MudText>
+    }
+    else if (forecastData != null && forecastData.Any())
+    {
+        <MudGrid>
+            <MudItem xs="12">
+                <MudPaper Elevation="2" Class="pa-4 mb-4">
+                    <MudText Typo="Typo.subtitle1" Color="Color.Primary" Class="mb-4">5-Day Forecast</MudText>
+                    <div class="d-flex overflow-auto py-2" style="scroll-snap-type: x mandatory; scroll-behavior: smooth;">
+                        @for (int i = 0; i < forecastData.Count; i++)
+                        {
+                            var forecast = forecastData[i];
+                            bool isSelected = selectedForecast == forecast;
+                            string dayName = GetDayOfWeek(forecast.Date);
+                            bool isToday = i == 0;
+
+                            <MudCard Elevation="@(isSelected ? 3 : 1)"
+                                     Outlined="@isSelected"
+                                     Style="min-width: 150px; max-width: 150px; scroll-snap-align: start;"
+                                     Class="@($"ma-2 forecast-card {(isSelected ? "selected-card" : "")}")"
+                                     @onclick="() => ToggleDetails(forecast)">
+                                <MudCardHeader Class="py-2 px-3">
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.subtitle2" Color="@(isToday ? Color.Primary : Color.Default)">
+                                            @(isToday ? "Today" : dayName)
+                                        </MudText>
+                                        <MudText Typo="Typo.caption">
+                                            @(DateTime.TryParse(forecast.Date, out var date) ? date.ToString("MMM d") : "")
+                                        </MudText>
+                                    </CardHeaderContent>
+                                </MudCardHeader>
+                                <MudCardContent Class="py-2 text-center">
+                                    <MudIcon Icon="@GetWeatherIcon(forecast.Weather)"
+                                             Color="Color.Primary"
+                                             Size="Size.Large"
+                                             Class="mb-2" />
+                                    <MudText Typo="Typo.h6" Class="font-weight-bold">@forecast.Temperature</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@forecast.Weather</MudText>
+                                    <MudDivider Class="my-2" />
+                                    <div class="d-flex justify-space-between align-center mt-2">
+                                        <div class="d-flex align-center">
+                                            <MudIcon Icon="@Icons.Material.Filled.WaterDrop"
+                                                     Size="Size.Small"
+                                                     Color="Color.Info"
+                                                     Class="mr-1" />
+                                            <MudText Typo="Typo.caption">@forecast.Humidity%</MudText>
+                                        </div>
+                                        <div class="d-flex align-center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Air"
+                                                     Size="Size.Small"
+                                                     Class="mr-1" />
+                                            <MudText Typo="Typo.caption">@forecast.WindSpeed m/s</MudText>
+                                        </div>
+                                    </div>
+                                </MudCardContent>
+                            </MudCard>
+                        }
+                    </div>
+                    
+                </MudPaper>
+            </MudItem>
+
+            @if (selectedForecast != null)
+            {
+                <MudItem xs="12">
+                    <MudPaper Elevation="3" Class="pa-4">
+                        <MudGrid>
+                            <MudItem xs="12" md="6">
+                                <MudCard Elevation="0" Class="mb-4">
+                                    <MudCardHeader>
+                                        <CardHeaderAvatar>
+                                            <MudAvatar Color="Color.Primary" Size="Size.Large">
+                                                <MudIcon Icon="@GetWeatherIcon(selectedForecast.Weather)" />
+                                            </MudAvatar>
+                                        </CardHeaderAvatar>
+                                        <CardHeaderContent>
+                                            <MudText Typo="Typo.h5">@GetDayOfWeek(selectedForecast.Date)</MudText>
+                                            <MudText Typo="Typo.body2">@GetFormattedDate(selectedForecast.Date)</MudText>
+                                        </CardHeaderContent>
+                                    </MudCardHeader>
+                                    <MudCardContent>
+                                        <MudText Typo="Typo.body1" Class="mb-4">
+                                            @selectedForecast.Weather with temperature at @selectedForecast.Temperature and
+                                            humidity at @selectedForecast.Humidity%. Wind speed is @selectedForecast.WindSpeed m/s.
+                                        </MudText>
+
+                                        <MudDivider Class="my-3" />
+
+                                        <MudGrid>
+                                            <MudItem xs="6">
+                                                <div class="d-flex flex-column align-center mb-4">
+                                                    <MudIcon Icon="@Icons.Material.Filled.WbSunny"
+                                                             Color="Color.Warning"
+                                                             Size="Size.Medium"
+                                                             Class="mb-1" />
+                                                    <MudText Typo="Typo.body2">Sunrise</MudText>
+                                                    <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedForecast.Sunrise</MudText>
+                                                </div>
+                                            </MudItem>
+                                            <MudItem xs="6">
+                                                <div class="d-flex flex-column align-center mb-4">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Brightness3"
+                                                             Color="Color.Dark"
+                                                             Size="Size.Medium"
+                                                             Class="mb-1" />
+                                                    <MudText Typo="Typo.body2">Sunset</MudText>
+                                                    <MudText Typo="Typo.body1" Class="font-weight-bold">@selectedForecast.Sunset</MudText>
+                                                </div>
+                                            </MudItem>
+                                        </MudGrid>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudText Typo="Typo.subtitle1" Class="mb-3">Weather Details</MudText>
+
+                                <MudPaper Elevation="0" Class="pa-4 mb-3" Style="background-color: var(--mud-palette-background-grey)">
+                                    <MudGrid>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-2">Temperature</MudText>
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Thermostat"
+                                                         Color="Color.Error"
+                                                         Size="Size.Medium"
+                                                         Class="mr-2" />
+                                                <div>
+                                                    <MudText Typo="Typo.h6">@selectedForecast.Temperature</MudText>
+                                                    <MudText Typo="Typo.caption">Feels like: @selectedForecast.FeelsLike</MudText>
+                                                </div>
+                                            </div>
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-2">Humidity</MudText>
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.WaterDrop"
+                                                         Color="Color.Info"
+                                                         Size="Size.Medium"
+                                                         Class="mr-2" />
+                                                <MudText Typo="Typo.h6">@selectedForecast.Humidity%</MudText>
+                                            </div>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+
+                                <MudPaper Elevation="0" Class="pa-4" Style="background-color: var(--mud-palette-background-grey)">
+                                    <MudGrid>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-2">Wind Speed</MudText>
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Air"
+                                                         Color="Color.Default"
+                                                         Size="Size.Medium"
+                                                         Class="mr-2" />
+                                                <MudText Typo="Typo.h6">@selectedForecast.WindSpeed m/s</MudText>
+                                            </div>
+                                        </MudItem>
+                                        <MudItem xs="6">
+                                            <MudText Typo="Typo.subtitle2" Class="mb-2">Pressure</MudText>
+                                            <div class="d-flex align-center">
+                                                <MudIcon Icon="@Icons.Material.Filled.Compress"
+                                                         Color="Color.Default"
+                                                         Size="Size.Medium"
+                                                         Class="mr-2" />
+                                                <MudText Typo="Typo.h6">@selectedForecast.Pressure hPa</MudText>
+                                            </div>
+                                        </MudItem>
+                                    </MudGrid>
+                                </MudPaper>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+    else if (hasSearched)
+    {
+        <MudAlert Severity="Severity.Info" Class="my-8" Elevation="2">
+            No forecast data available for "@city". Please try another city from the Home page.
+        </MudAlert>
+    }
+</MudContainer>
+
+<style>
+    .forecast-card {
+        transition: all 0.2s ease;
+    }
+
+        .forecast-card:hover {
+            transform: translateY(-3px);
+        }
+
+    .selected-card {
+        border-color: var(--mud-palette-primary);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+</style>
+
+@code {
+    private string city = string.Empty;
+    private List<SimpleForecast>? forecastData = null;
+    private bool isLoading = false;
+    private bool hasSearched = false;
+    private SimpleForecast? selectedForecast = null;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("city", out var cityFromQuery))
+        {
+            city = cityFromQuery.FirstOrDefault() ?? string.Empty;
+        }
+        else
+        {
+            city = await LocalStorage.GetItemAsync<string>("lastCity");
+        }
+
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            await LoadForecastForCurrentLocation();
+        }
+        else
+        {
+            await LoadForecastAsync();
+        }
+    }
+
+    private async Task LoadForecastAsync()
+    {
+        if (string.IsNullOrWhiteSpace(city))
+        {
+            Snackbar.Add("No city specified.", Severity.Warning);
+            return;
+        }
+
+        isLoading = true;
+        hasSearched = true;
+
+        try
+        {
+            forecastData = await WeatherService.GetWeatherForecastAsync(city);
+            if (forecastData != null && forecastData.Any())
+            {
+                selectedForecast = forecastData.First();
+                Snackbar.Add($"Forecast loaded for {city}", Severity.Success);
+            }
+            else
+            {
+                forecastData = new List<SimpleForecast>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching forecast: {ex.Message}", Severity.Error);
+            forecastData = new List<SimpleForecast>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadForecastForCurrentLocation()
+    {
+        isLoading = true;
+        hasSearched = true;
+
+        try
+        {
+            var location = await JSRuntime.InvokeAsync<GeoLocation>("getCurrentLocation");
+            if (location == null)
+            {
+                Snackbar.Add("Unable to retrieve your location. Please enable location services.", Severity.Warning);
+                return;
+            }
+
+            var weather = await WeatherService.GetWeatherByCoordinatesAsync(location.Latitude, location.Longitude);
+            if (weather == null)
+            {
+                Snackbar.Add("Could not fetch weather data for your location.", Severity.Error);
+                return;
+            }
+
+            city = weather.City;
+            await LocalStorage.SetItemAsync("lastCity", city);
+            forecastData = await WeatherService.GetWeatherForecastAsync(city);
+            if (forecastData != null && forecastData.Any())
+            {
+                selectedForecast = forecastData.First();
+                Snackbar.Add($"Forecast loaded for {city} (current location)", Severity.Success);
+            }
+            else
+            {
+                forecastData = new List<SimpleForecast>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error fetching forecast for current location: {ex.Message}", Severity.Error);
+            forecastData = new List<SimpleForecast>();
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ToggleDetails(SimpleForecast forecast)
+    {
+        selectedForecast = forecast;
+        StateHasChanged();
+    }
+
+    private string GetDayOfWeek(string dateString)
+    {
+        if (DateTime.TryParse(dateString, out var date))
+        {
+            return date.ToString("dddd");
+        }
+        return string.Empty;
+    }
+
+    private string GetFormattedDate(string dateString)
+    {
+        if (DateTime.TryParse(dateString, out var date))
+        {
+            return date.ToString("d MMMM");
+        }
+        return string.Empty;
+    }
+
+    private string GetWeatherIcon(string weather)
+    {
+        return weather.ToLower() switch
+        {
+            string w when w.Contains("clear") => "@Icons.Material.Filled.WbSunny",
+            string w when w.Contains("cloud") => "@Icons.Material.Filled.Cloud",
+            string w when w.Contains("rain") => "@Icons.Material.Filled.Umbrella",
+            string w when w.Contains("snow") => "@Icons.Material.Filled.AcUnit",
+            string w when w.Contains("storm") => "@Icons.Material.Filled.FlashOn",
+            _ => "@Icons.Material.Filled.WeatherMix"
+        };
+    }
+}

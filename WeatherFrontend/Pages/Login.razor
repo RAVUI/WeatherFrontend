@@ -4,6 +4,7 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 @inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject ISnackbar Snackbar
 
 <style>
     html, body {
@@ -127,10 +128,14 @@
             <MudTextField @bind-Value="password"
                           Placeholder="Enter your password"
                           Variant="Variant.Outlined"
-                          InputType="InputType.Password"
+                          InputType="@passwordInputType"
                           FullWidth="true"
                           Margin="Margin.None"
-                          OnKeyUp="HandleKeyPress" />
+                          OnKeyUp="HandleKeyPress"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@passwordIcon"
+                          AdornmentAriaLabel="Show Password"
+                          OnAdornmentClick="TogglePasswordVisibility" />
 
             <div class="forgot-password">
                 <a href="javascript:void(0)" @onclick="NavigateToForgotPassword">Forgot Password?</a>
@@ -152,24 +157,46 @@
     private string email = "";
     private string password = "";
     private string errorMessage = "";
+    private bool passwordVisible = false;
+    private InputType passwordInputType = InputType.Password;
+    private string passwordIcon = Icons.Material.Filled.VisibilityOff;
 
     private async Task HandleLogin()
     {
         try
         {
+            // Basic email validation
+            if (string.IsNullOrWhiteSpace(email) || !email.Contains("@") || !email.Contains("."))
+            {
+                
+                Snackbar.Add("Please enter a valid email address", Severity.Error);
+                return;
+            }
+
+            // Password validation
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                
+                Snackbar.Add("Please enter your password", Severity.Error);
+                return;
+            }
+
             var result = await AuthService.Login(email, password);
             if (result != null)
             {
+                Snackbar.Add("Login successful! Redirecting...", Severity.Success);
                 Navigation.NavigateTo("/home", forceLoad: true);
             }
             else
             {
-                errorMessage = "Invalid credentials";
+                
+                Snackbar.Add("Invalid credentials", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            errorMessage = "An error occurred during login: " + ex.Message;
+            
+            Snackbar.Add("Login failed: " + ex.Message, Severity.Error);
         }
     }
 
@@ -184,5 +211,21 @@
     private void NavigateToForgotPassword()
     {
         Navigation.NavigateTo("/forgot-password");
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        if (passwordVisible)
+        {
+            passwordVisible = false;
+            passwordInputType = InputType.Password;
+            passwordIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            passwordVisible = true;
+            passwordInputType = InputType.Text;
+            passwordIcon = Icons.Material.Filled.Visibility;
+        }
     }
 }

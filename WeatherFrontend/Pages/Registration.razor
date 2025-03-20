@@ -3,6 +3,63 @@
 @using MudBlazor
 @inject AuthService AuthService
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+
+<div class="page-container">
+    <div class="form-container">
+        <div class="title">Create Account</div>
+        <div class="subtitle">Register to get started</div>
+
+        <div class="tabs">
+            <div class="tab" @onclick="@(() => Navigation.NavigateTo("/login"))">Login</div>
+            <div class="tab active">Register</div>
+        </div>
+
+        <div class="input-container">
+            <MudTextField @bind-Value="email"
+                          Placeholder="Enter your email"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Margin="Margin.None"
+                          @onkeypress="HandleKeyPress" />
+
+            <MudTextField @bind-Value="password"
+                          Placeholder="Enter your password"
+                          Variant="Variant.Outlined"
+                          InputType="@passwordInputType"
+                          FullWidth="true"
+                          Margin="Margin.None"
+                          @onkeypress="HandleKeyPress"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@passwordIcon"
+                          AdornmentAriaLabel="Show Password"
+                          OnAdornmentClick="TogglePasswordVisibility" />
+
+            <MudTextField @bind-Value="confirmPassword"
+                          Placeholder="Confirm your password"
+                          Variant="Variant.Outlined"
+                          InputType="@confirmPasswordInputType"
+                          FullWidth="true"
+                          Margin="Margin.None"
+                          @onkeypress="HandleKeyPress"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@confirmPasswordIcon"
+                          AdornmentAriaLabel="Show Password"
+                          OnAdornmentClick="ToggleConfirmPasswordVisibility" />
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <MudText Color="Color.Error">@errorMessage</MudText>
+            }
+
+            <button class="register-button" @onclick="HandleRegister">
+                REGISTER
+            </button>
+        </div>
+    </div>
+</div>  
+
 
 <style>
     .page-container {
@@ -84,63 +141,43 @@
     }
 </style>
 
-<div class="page-container">
-    <div class="form-container">
-        <div class="title">Create Account</div>
-        <div class="subtitle">Register to get started</div>
-
-        <div class="tabs">
-            <div class="tab" @onclick="@(() => Navigation.NavigateTo("/login"))">Login</div>
-            <div class="tab active">Register</div>
-        </div>
-
-        <div class="input-container">
-            <MudTextField @bind-Value="email"
-                          Placeholder="Enter your email"
-                          Variant="Variant.Outlined"
-                          FullWidth="true"
-                          Margin="Margin.None"
-                          @onkeypress="HandleKeyPress" />
-
-            <MudTextField @bind-Value="password"
-                          Placeholder="Enter your password"
-                          Variant="Variant.Outlined"
-                          InputType="InputType.Password"
-                          FullWidth="true"
-                          Margin="Margin.None"
-                          @onkeypress="HandleKeyPress" />
-
-            <MudTextField @bind-Value="confirmPassword"
-                          Placeholder="Confirm your password"
-                          Variant="Variant.Outlined"
-                          InputType="InputType.Password"
-                          FullWidth="true"
-                          Margin="Margin.None"
-                          @onkeypress="HandleKeyPress" />
-
-            @if (!string.IsNullOrEmpty(errorMessage))
-            {
-                <MudText Color="Color.Error">@errorMessage</MudText>
-            }
-
-            <button class="register-button" @onclick="HandleRegister">
-                REGISTER
-            </button>
-        </div>
-    </div>
-</div>
-
 @code {
     private string email = "";
     private string password = "";
     private string confirmPassword = "";
     private string errorMessage = "";
 
+    // Password visibility variables
+    private bool passwordVisible = false;
+    private InputType passwordInputType = InputType.Password;
+    private string passwordIcon = Icons.Material.Filled.VisibilityOff;
+
+    // Confirm password visibility variables
+    private bool confirmPasswordVisible = false;
+    private InputType confirmPasswordInputType = InputType.Password;
+    private string confirmPasswordIcon = Icons.Material.Filled.VisibilityOff;
+
     private async Task HandleRegister()
     {
+        // Basic validation
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains("@") || !email.Contains("."))
+        {
+            
+            Snackbar.Add("Please enter a valid email address", Severity.Error);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            
+            Snackbar.Add("Please enter a password", Severity.Error);
+            return;
+        }
+
         if (password != confirmPassword)
         {
-            errorMessage = "Passwords do not match.";
+            
+            Snackbar.Add("Passwords do not match", Severity.Error);
             return;
         }
 
@@ -149,17 +186,20 @@
             var result = await AuthService.Register(email, password);
             if (result)
             {
-                errorMessage = "Registration successful! Please log in.";
+                
+                Snackbar.Add("Registration successful! Please log in.", Severity.Success);
                 Navigation.NavigateTo("/login");
             }
             else
             {
-                errorMessage = "Registration failed. Email might already be in use.";
+                
+                Snackbar.Add("Registration failed. Email might already be in use.", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"An error occurred during registration: {ex.Message}";
+            
+            Snackbar.Add($"An error occurred during registration: {ex.Message}", Severity.Error);
         }
     }
 
@@ -168,6 +208,38 @@
         if (e.Key == "Enter")
         {
             HandleRegister();
+        }
+    }
+
+    private void TogglePasswordVisibility()
+    {
+        if (passwordVisible)
+        {
+            passwordVisible = false;
+            passwordInputType = InputType.Password;
+            passwordIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            passwordVisible = true;
+            passwordInputType = InputType.Text;
+            passwordIcon = Icons.Material.Filled.Visibility;
+        }
+    }
+
+    private void ToggleConfirmPasswordVisibility()
+    {
+        if (confirmPasswordVisible)
+        {
+            confirmPasswordVisible = false;
+            confirmPasswordInputType = InputType.Password;
+            confirmPasswordIcon = Icons.Material.Filled.VisibilityOff;
+        }
+        else
+        {
+            confirmPasswordVisible = true;
+            confirmPasswordInputType = InputType.Text;
+            confirmPasswordIcon = Icons.Material.Filled.Visibility;
         }
     }
 }
